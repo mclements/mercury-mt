@@ -15,7 +15,7 @@
 
 :- instance random(random).
 
-%% seed(Seed::in, State::out), constructs an instance based on R's set.seed algorithm
+%% seed(Seed) = Random, constructs an instance based on R's set.seed algorithm
 :- func seed(uint32) = random.
 
     % Generate a uniformly distributed pseudo-random unsigned integer
@@ -26,12 +26,7 @@
 :- pred generate_uint32(uint32::out, random::in, random::out) is det.
 :- pred generate_uint64(uint64::out, random::in, random::out) is det.
 
-    % uniform_float_in_01(N, !R)
-    %
-    % Generate a pseudo-random float that is uniformly distributed
-    % in the interval [0.0, 1.0).
-    %
-:- pred uniform_float_in_01(float::out, R::in, R::out) is det <= random(R).
+:- pred runif(float::out, random::in, random::out) is det.
 
 
 :- implementation.
@@ -174,7 +169,7 @@ generate_uint64(N, !S) :-
     B = uint32.cast_to_uint64(B0),
     N = A + (B << 32).
 
-uniform_float_in_01(N, !R) :-
-    generate_uint32(N0, !R),
+runif(U, !R) :-
+    mt.generate_uint32(N0, !R),
     C = 2.3283064365386963e-10,
-    N = float.cast_from_uint32(N0) * C.
+    U = float.cast_from_uint32(N0) * C.
