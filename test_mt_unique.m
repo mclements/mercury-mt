@@ -17,7 +17,7 @@
 
 :- pred runif(params::in, int::in, list(float)::out, ustate::di, ustate::uo).
 runif(P, N, List, !Rng) :- 
-    map_foldl((pred(_::in,U::out,R0::di,R::uo) is det :- runif(P, U, R0, R)),
+    map_foldl((pred(_I::in,U::out,R0::di,R::uo) is det :- runif(P, U, R0, R)),
 	      1..N, List, !Rng).
 
 main(!IO) :-
@@ -25,8 +25,8 @@ main(!IO) :-
     seed(12345u32, P, R),
     runif(P,2*N,Us,R,_),
     print_line("Expected: {0.72090390, 0.07196114}", !IO),
-    list.det_index0(Us,0,U1),
-    list.det_index0(Us,2*N-1,U2),
+    list.det_index1(Us,1,U1),
+    list.det_index1(Us,2*N,U2),
     format("Observed: {%10.8f, %10.8f}\n", [f(U1), f(U2)], !IO).
 
 /*
