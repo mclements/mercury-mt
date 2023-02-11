@@ -1,0 +1,182 @@
+#+title: mercury-mt: Mercury library for the Mersenne Twister random number generator
+#+author: Mark Clements
+
+** Introduction
+Mercury-only library for the Mersenne Twister random number generator. This uses either the =mt= instance that implements a grounded =random.random= type class or the =mt_unique= instance that implements a unique =random.urandom= type class. For each approach, =seed(uint32)= function is provided that returns a generator that is seeded as per R's =set.seed()= function.
+
+** 32-bit versus 64-bit random numbers
+Many of the random number generators in programming languages are based on a 32-bit Mersenne Twister generator. However, Mercury's =random= type classes default to using a 64-bit random number generators. We have provided a =runif(float::out, mt::in, mt::out)= predicate that generates uniform random numbers between 0 and 1 using a 32-bit random number generator to provide the same random numbers as per R's =runif()= function. 
+
+Question for Mercury users: is it better to do this as a ground generator or as a unique generator?
+
+** Examples
+
+#+begin_src sh :results output :exports results
+  head -n 30 test_mt.m | tail -n 23
+#+end_src
+
+#+RESULTS:
+#+begin_example
+:- module test_mt.
+
+:- interface.
+:- import_module io.
+:- pred main(io::di, io::uo) is det.
+
+:- implementation.
+
+:- import_module mt, float, list, int, uint32, string, random.
+
+:- pred runif(int::in, list(float)::out, random::in, random::out).
+runif(N, List, !Rng) :- 
+    map_foldl((pred(_I::in,U::out,R0::in,R::out) is det :- runif(U, R0, R)),
+	      1..N, List, !Rng).
+
+main(!IO) :-
+    R0 = seed(12345u32),
+    N = 624,
+    runif(2*N,Us,R0,_),
+    print_line("Expected: {0.72090390, 0.07196114}", !IO),
+    list.det_index1(Us,1,U1),
+    list.det_index1(Us,2*N,U2),
+    format("Observed: {%10.8f, %10.8f}\n", [f(U1), f(U2)], !IO).
+#+end_example
+
+
+#+begin_src sh :results output :exports results
+  make
+#+end_src
+
+#+RESULTS:
+: mmc --make libmt test_mt && ./test_mt
+: Expected: {0.72090390, 0.07196114}
+: Observed: {0.72090390, 0.07196114}
+
+#+begin_src R :results output :exports both
+  set.seed(12345)
+  runif(624*2)[c(1,624*2)]
+#+end_src
+
+#+RESULTS:
+: [1] 0.72090390 0.07196114
+
+The test code for =mt_unique= is very similar:
+
+#+begin_src sh :results output :exports results
+  head -n 30 test_mt_unique.m | tail -n 23
+#+end_src
+
+#+RESULTS:
+#+begin_example
+:- module test_mt_unique.
+
+:- interface.
+:- import_module io.
+:- pred main(io::di, io::uo) is det.
+
+:- implementation.
+
+:- import_module mt_unique, float, list, int, uint32, string, random.
+
+:- pred runif(params::in, int::in, list(float)::out, ustate::di, ustate::uo).
+runif(P, N, List, !Rng) :- 
+    map_foldl((pred(_::in,U::out,R0::di,R::uo) is det :- runif(P, U, R0, R)),
+	      1..N, List, !Rng).
+
+main(!IO) :-
+    N = 624,
+    seed(12345u32, P, R),
+    runif(P,2*N,Us,R,_),
+    print_line("Expected: {0.72090390, 0.07196114}", !IO),
+    list.det_index1(Us,1,U1),
+    list.det_index1(Us,2*N,U2),
+    format("Observed: {%10.8f, %10.8f}\n", [f(U1), f(U2)], !IO).
+#+end_example
+
+
+** Documentation
+
+*** mt
+
+#+begin_src sh :results output :exports results
+  head -n 29 mt.m | tail -n 22
+#+end_src
+
+#+RESULTS:
+#+begin_example
+:- module mt.
+
+:- interface.
+:- import_module random, uint8, uint16, uint32, uint64.
+
+%% Types
+:- type random.
+
+:- instance random(random).
+
+%% seed(Seed) = Random, constructs an instance based on R's set.seed algorithm
+:- func seed(uint32) = random.
+
+    % Generate a uniformly distributed pseudo-random unsigned integer
+    % of 8, 16, 32 or 64 bits, respectively.
+    %
+:- pred generate_uint8(uint8::out, random::in, random::out) is det.
+:- pred generate_uint16(uint16::out, random::in, random::out) is det.
+:- pred generate_uint32(uint32::out, random::in, random::out) is det.
+:- pred generate_uint64(uint64::out, random::in, random::out) is det.
+
+:- pred runif(float::out, random::in, random::out) is det.
+#+end_example
+
+*** mt_unique
+
+#+begin_src sh :results output :exports results
+  head -n 50 mt_unique.m | tail -n 43
+#+end_src
+
+#+RESULTS:
+#+begin_example
+:- module mt_unique.
+
+:- interface.
+:- import_module random, uint8, uint16, uint32, uint64.
+
+%% Types
+:- type params.
+:- type ustate.
+
+:- instance urandom(params, ustate).
+:- instance urandom_dup(ustate).
+
+%% seed(Seed::in, State::out), constructs an instance based on R's set.seed algorithm
+:- pred seed(uint32::in, params::out, ustate::uo) is det.
+
+    % Generate a uniformly distributed pseudo-random unsigned integer
+    % of 8, 16, 32 or 64 bits, respectively.
+    %
+:- pred generate_uint8(params::in, uint8::out,
+    ustate::di, ustate::uo) is det.
+:- pred generate_uint16(params::in, uint16::out,
+    ustate::di, ustate::uo) is det.
+:- pred generate_uint32(params::in, uint32::out,
+    ustate::di, ustate::uo) is det.
+:- pred generate_uint64(params::in, uint64::out,
+    ustate::di, ustate::uo) is det.
+
+    % Duplicate a 32-bit SFC state.
+    %
+:- pred urandom_dup(ustate::di, ustate::uo, ustate::uo) is det.
+
+    % Generate a uniformly distributed pseudo-random unsigned integer
+    % of 8, 16, 32 or 64 bits, respectively.
+    %
+    % As above, but does not require the params argument (which is a dummy
+    % type only needed to satisfy the typeclass interface).
+    %
+:- pred generate_uint8(uint8::out, ustate::di, ustate::uo) is det.
+:- pred generate_uint16(uint16::out, ustate::di, ustate::uo) is det.
+:- pred generate_uint32(uint32::out, ustate::di, ustate::uo) is det.
+:- pred generate_uint64(uint64::out, ustate::di, ustate::uo) is det.
+
+:- pred runif(params::in, float::out, ustate::di, ustate::uo) is det.
+#+end_example
