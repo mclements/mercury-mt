@@ -143,6 +143,7 @@ xor(X,!Y) :- !:Y = xor(!.Y, X).
 generate_uint32(N, RS0, RS) :-
     some ([!Mt,!I,!Y]) (
         random(!:I,!:Mt) = RS0,
+	!:Mt = array.copy(!.Mt),
         !:Y = 0u32,
 	(if !.I = n /* generate N words at one time */
 	then
