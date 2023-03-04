@@ -1,9 +1,9 @@
 %% Title: test_mt.m
 %% Description: Test for the Mercury library for Mersenne Twister random number generator
 %% Licence: GPL-3
-%% Author: Mark Clements
-%% Date: 2023-02-01
-%% Version: 0.1.1
+%% Authors: Mark Clements, Mark Brown
+%% Date: 2023-03-04
+%% Version: 0.1.2
 
 :- module test_mt.
 
@@ -21,19 +21,25 @@ runif(N, List, !Rng) :-
 	      1..N, List, !Rng).
 
 main(!IO) :-
-    R0 = seed(12345u32),
-    N = 624,
-    runif(2*N,Us,R0,_),
     print_line("Expected: {0.72090390, 0.07196114}", !IO),
+    seed(12345u32, S0),
+    test(S0, S1, !IO),
+    test(S1, _, !IO),
+    test(S0, _, !IO).
+
+:- pred test(random::in, random::out, io::di, io::uo) is det.
+
+test(!R, !IO) :-
+    N = 624,
+    runif(2*N,Us,!R),
     list.det_index1(Us,1,U1),
     list.det_index1(Us,2*N,U2),
     format("Observed: {%10.8f, %10.8f}\n", [f(U1), f(U2)], !IO).
 
 /*
 
-R -q -e "set.seed(12345); runif(624*2)[c(1,624*2)]"
+R -q -e "set.seed(12345); runif(624*2)[c(1,624*2)]; runif(624*2)[c(1,624*2)]"
 > [1] 0.72090390 0.07196114
-
-R -q -e "set.seed(12345); microsimulation::unsigned(.Random.seed); runif(1); microsimulation::unsigned(.Random.seed)"
+[1] 0.7635538 0.7015028
 
 */
